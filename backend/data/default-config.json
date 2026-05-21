@@ -1,0 +1,312 @@
+{
+  "settings": {
+    "title": "Fuzzy",
+    "search": {
+      "engineName": "Google",
+      "searchUrl": "https://www.google.com/search?q=",
+      "placeholder": "Search with Google or enter address"
+    },
+    "appearance": {
+      "backgroundType": "color",
+      "backgroundUrl": "",
+      "backgroundColor": "#050505",
+      "overlayColor": "#000000",
+      "overlayOpacity": 0.65,
+      "blur": 0,
+      "vignette": 80,
+      "accentColor": "#ffffff",
+      "density": "comfortable"
+    }
+  },
+  "availableBackgrounds": [],
+  "categories": [
+    {
+      "id": "cat_web",
+      "name": "Web",
+      "slug": "web",
+      "enabled": true,
+      "sortOrder": 1
+    },
+    {
+      "id": "cat_dev",
+      "name": "Dev",
+      "slug": "dev",
+      "enabled": true,
+      "sortOrder": 2
+    },
+    {
+      "id": "cat_proj",
+      "name": "Projetos",
+      "slug": "projetos",
+      "enabled": true,
+      "sortOrder": 3
+    },
+    {
+      "id": "cat_local",
+      "name": "Local",
+      "slug": "local",
+      "enabled": true,
+      "sortOrder": 4
+    },
+    {
+      "id": "cat_bots",
+      "name": "Bots",
+      "slug": "bots",
+      "enabled": true,
+      "sortOrder": 5
+    },
+    {
+      "id": "cat_gaming",
+      "name": "Gaming",
+      "slug": "gaming",
+      "enabled": true,
+      "sortOrder": 6
+    }
+  ],
+  "shortcuts": [
+    {
+      "id": "s1",
+      "title": "YouTube",
+      "url": "https://youtube.com",
+      "categoryId": "cat_web",
+      "iconType": "lucide",
+      "iconValue": "Youtube",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 1,
+      "accentColor": "#ef4444",
+      "iconColor": "#ef4444",
+      "showLabel": true
+    },
+    {
+      "id": "s2",
+      "title": "ChatGPT",
+      "subtitle": "OpenAI",
+      "url": "https://chatgpt.com",
+      "categoryId": "cat_web",
+      "iconType": "lucide",
+      "iconValue": "Bot",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 2,
+      "accentColor": "#10b981",
+      "iconColor": "#10b981",
+      "showLabel": true
+    },
+    {
+      "id": "s3",
+      "title": "GitHub",
+      "url": "https://github.com",
+      "categoryId": "cat_dev",
+      "iconType": "lucide",
+      "iconValue": "Github",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 1,
+      "showLabel": true
+    },
+    {
+      "id": "s4",
+      "title": "Gmail",
+      "url": "https://mail.google.com",
+      "categoryId": "cat_web",
+      "iconType": "lucide",
+      "iconValue": "Mail",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 3,
+      "showLabel": true,
+      "iconColor": "#ef4444"
+    },
+    {
+      "id": "s5",
+      "title": "Google Drive",
+      "url": "https://drive.google.com",
+      "categoryId": "cat_web",
+      "iconType": "lucide",
+      "iconValue": "Drive",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 4,
+      "showLabel": true
+    },
+    {
+      "id": "s6",
+      "title": "FuzControl",
+      "url": "http://fuzcontrol.local",
+      "categoryId": "cat_proj",
+      "iconType": "text",
+      "iconValue": "FC",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 1,
+      "showLabel": true,
+      "iconColor": "#3b82f6"
+    },
+    {
+      "id": "s7",
+      "title": "SeuValet",
+      "url": "http://seuvalet.local",
+      "categoryId": "cat_proj",
+      "iconType": "text",
+      "iconValue": "SV",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 2,
+      "showLabel": true,
+      "iconColor": "#8b5cf6"
+    },
+    {
+      "id": "s8",
+      "title": "Discord",
+      "url": "https://discord.com/app",
+      "categoryId": "cat_gaming",
+      "iconType": "text",
+      "iconValue": "DC",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 1,
+      "iconColor": "#5865F2",
+      "showLabel": false
+    },
+    {
+      "id": "s9",
+      "title": "Hostinger",
+      "url": "https://hpanel.hostinger.com",
+      "categoryId": "cat_dev",
+      "iconType": "lucide",
+      "iconValue": "Server",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 2,
+      "showLabel": true
+    },
+    {
+      "id": "s10",
+      "title": "Cloudflare",
+      "url": "https://dash.cloudflare.com",
+      "categoryId": "cat_dev",
+      "iconType": "lucide",
+      "iconValue": "Cloud",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 3,
+      "iconColor": "#f59e0b",
+      "showLabel": true
+    },
+    {
+      "id": "s11",
+      "title": "MiniPC",
+      "subtitle": "Proxmox",
+      "url": "https://192.168.1.100:8006",
+      "categoryId": "cat_local",
+      "iconType": "lucide",
+      "iconValue": "Monitor",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 1,
+      "showLabel": true,
+      "iconColor": "#e48632"
+    },
+    {
+      "id": "s12",
+      "title": "Minecraft Server",
+      "url": "pterodactyl.local",
+      "categoryId": "cat_gaming",
+      "iconType": "lucide",
+      "iconValue": "Gamepad2",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 2,
+      "showLabel": true,
+      "iconColor": "#22c55e"
+    },
+    {
+      "id": "s13",
+      "title": "PM2 Monitor",
+      "url": "http://localhost:9615",
+      "categoryId": "cat_local",
+      "iconType": "lucide",
+      "iconValue": "Database",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 2,
+      "showLabel": true
+    },
+    {
+      "id": "s14",
+      "title": "Localhost 3000",
+      "url": "http://localhost:3000",
+      "categoryId": "cat_local",
+      "iconType": "lucide",
+      "iconValue": "Code",
+      "enabled": true,
+      "openInNewTab": false,
+      "sortOrder": 3,
+      "showLabel": true
+    }
+  ],
+  "widgets": [
+    {
+      "id": "w1",
+      "type": "clock",
+      "title": "Clock",
+      "icon": "Clock",
+      "enabled": true,
+      "position": "left",
+      "size": "medium",
+      "config": {
+        "showSeconds": true,
+        "format24h": true,
+        "showDate": true
+      },
+      "sortOrder": 1
+    },
+    {
+      "id": "w2",
+      "type": "systemInfo",
+      "title": "System Info",
+      "icon": "Terminal",
+      "enabled": true,
+      "position": "right",
+      "size": "medium",
+      "config": {},
+      "sortOrder": 1
+    },
+    {
+      "id": "w3",
+      "type": "serviceStatus",
+      "title": "Services",
+      "icon": "Activity",
+      "enabled": true,
+      "position": "right",
+      "size": "small",
+      "config": {},
+      "sortOrder": 2
+    },
+    {
+      "id": "w4",
+      "type": "quickNotes",
+      "title": "Notes",
+      "icon": "PenLine",
+      "enabled": true,
+      "position": "left",
+      "size": "medium",
+      "config": {
+        "placeholder": "Write down some quick notes..."
+      },
+      "sortOrder": 2
+    },
+    {
+      "id": "w5",
+      "type": "linksSection",
+      "title": "Quick Links",
+      "icon": "Link2",
+      "enabled": true,
+      "position": "left",
+      "size": "small",
+      "config": {},
+      "sortOrder": 3
+    }
+  ]
+}

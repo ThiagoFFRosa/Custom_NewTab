@@ -4,5 +4,17 @@ dist/
 coverage/
 .DS_Store
 *.log
+.env
+.env.local
 .env*
 !.env.example
+
+backend/data/config.json
+backend/data/config.backup.json
+backend/data/history/
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/backgrounds/
+!backend/uploads/backgrounds/.gitkeep
+!backend/uploads/icons/
+!backend/uploads/icons/.gitkeep

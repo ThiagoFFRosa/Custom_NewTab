@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, X, Trash2, Plus, RotateCcw, Save } from 'lucide-react';
 import { DashboardConfig, Shortcut, Category, Widget } from '../types';
 import { GlassCard } from './GlassCard';
 import { IconPicker } from './IconPicker';
 import { ColorPickerField } from './ColorPickerField';
+import { deleteBackground, deleteIcon, listBackgrounds, listIcons, uploadBackground, uploadIcon } from '../services/api';
 
 interface EditPanelProps {
   config: DashboardConfig;
@@ -99,6 +100,13 @@ export function EditPanel({ config, updateConfig, resetConfig, isOpen, setIsOpen
 
 function AppearanceTab({ config, updateConfig, resetConfig }: any) {
   const { appearance, search } = config.settings;
+  const [backgrounds, setBackgrounds] = useState<Array<{filename:string;url:string}>>([]);
+
+  const refreshBackgrounds = async () => {
+    try { setBackgrounds(await listBackgrounds()); } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => { refreshBackgrounds(); }, []);
   const updateAppearance = (changes: any) => {
     updateConfig((prev: DashboardConfig) => ({
       ...prev,
@@ -154,29 +162,35 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
           />
           <input
              type="file"
-             accept="image/*"
-             onChange={(e) => {
+             accept="image/png,image/jpeg,image/webp"
+             onChange={async (e) => {
                const file = e.target.files?.[0];
-               if (file) {
-                 const reader = new FileReader();
-                 reader.onloadend = () => {
-                   updateAppearance({ backgroundUrl: reader.result as string });
-                 };
-                 reader.readAsDataURL(file);
+               if (!file) return;
+               try {
+                 const uploaded = await uploadBackground(file);
+                 await refreshBackgrounds();
+                 updateAppearance({ backgroundType: 'url', backgroundUrl: uploaded.url });
+               } catch (err) {
+                 console.error('Falha no upload de background', err);
                }
              }}
              className="w-full text-xs text-white/50 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 mb-4 cursor-pointer"
           />
           <div className="grid grid-cols-2 gap-2">
-            {config.availableBackgrounds.map((bg: string) => (
+            {backgrounds.map((bg) => (
               <button
-                key={bg}
-                onClick={() => updateAppearance({ backgroundUrl: bg })}
+                key={bg.filename}
+                onClick={() => updateAppearance({ backgroundType: 'url', backgroundUrl: bg.url })}
                 className={`h-24 rounded-lg bg-cover bg-center border-2 transition-all ${
-                  appearance.backgroundUrl === bg ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-100'
+                  appearance.backgroundUrl === bg.url ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-100'
                 }`}
-                style={{ backgroundImage: `url(${bg})` }}
-              />
+                style={{ backgroundImage: `url(${bg.url})` }}
+              >
+                <span
+                  onClick={(e) => { e.stopPropagation(); if (confirm('Deletar imagem?')) deleteBackground(bg.filename).then(refreshBackgrounds).catch(console.error); }}
+                  className="inline-flex text-[10px] bg-black/60 px-2 py-1 rounded ml-1 mt-1"
+                >del</span>
+              </button>
             ))}
           </div>
         </div>
@@ -270,6 +284,9 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
 }
 
 function ShortcutsTab({ config, updateConfig }: any) {
+  const [icons, setIcons] = useState<Array<{filename:string;url:string}>>([]);
+  const refreshIcons = async () => { try { setIcons(await listIcons()); } catch (e) { console.error(e); } };
+  useEffect(() => { refreshIcons(); }, []);
   const toggleShortcut = (id: string) => {
     updateConfig((prev: DashboardConfig) => ({
       ...prev,
@@ -387,7 +404,7 @@ function ShortcutsTab({ config, updateConfig }: any) {
                       <option value="lucide" className="bg-black/80">Lucide</option>
                       <option value="favicon" className="bg-black/80">Favicon</option>
                       <option value="text" className="bg-black/80">Text</option>
-                      <option value="image" className="bg-black/80">Image URL</option>
+                      <option value="image" className="bg-black/80">Image</option>
                     </select>
                  </div>
                </div>
@@ -403,12 +420,18 @@ function ShortcutsTab({ config, updateConfig }: any) {
                         className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 text-white text-xs"
                       />
                     ) : (
+                      <>
                       <input 
                         type="text" 
                         value={s.iconValue}
                         onChange={e => updateShortcut(s.id, { iconValue: e.target.value })}
                         className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 outline-none focus:border-white/30 text-white text-xs"
                       />
+                      {s.iconType === 'image' && (<>
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={async (e)=>{const f=e.target.files?.[0]; if(!f) return; try {const up=await uploadIcon(f); updateShortcut(s.id,{iconValue:up.url}); await refreshIcons();} catch(err){console.error(err);}}} className="w-full text-xs text-white/50 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-white/10" />
+                        <div className="grid grid-cols-4 gap-1 mt-2">{icons.map((ic)=> <button key={ic.filename} onClick={()=>updateShortcut(s.id,{iconValue:ic.url, iconType:'image'})} className="h-10 rounded bg-white/5 relative"><img src={ic.url} className="w-full h-full object-contain"/><span onClick={(e)=>{e.stopPropagation(); if(confirm('Deletar ícone?')) deleteIcon(ic.filename).then(refreshIcons);}} className="absolute top-0 right-0 text-[9px]">x</span></button>)}</div>
+                      </>)}
+                      </>
                     )}
                  </div>
                )}
