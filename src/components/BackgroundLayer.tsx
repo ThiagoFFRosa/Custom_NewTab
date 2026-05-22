@@ -6,13 +6,16 @@ interface Props {
   wallpapers?: WallpaperItem[];
 }
 
-const transitionStyle = (type: string, visible: boolean): React.CSSProperties => {
-  const base: React.CSSProperties = { opacity: visible ? 1 : 0, transform: 'translateX(0) scale(1)', filter: 'blur(0px)' };
-  if (type === 'zoom-fade' && !visible) base.transform = 'scale(1.04)';
-  if (type === 'blur-fade' && !visible) base.filter = 'blur(12px)';
-  if (type === 'slide-left' && !visible) base.transform = 'translateX(24px)';
-  if (type === 'slide-right' && !visible) base.transform = 'translateX(-24px)';
-  return base;
+const getNextTransform = (type: string, visible: boolean): string => {
+  if (type === 'zoom-fade') return visible ? 'scale(1)' : 'scale(1.04)';
+  if (type === 'slide-left') return visible ? 'translateX(0)' : 'translateX(32px)';
+  if (type === 'slide-right') return visible ? 'translateX(0)' : 'translateX(-32px)';
+  return 'none';
+};
+
+const getNextFilter = (type: string, visible: boolean, baseBlurPx: number): string => {
+  const blurFade = type === 'blur-fade' ? (visible ? 0 : 14) : 0;
+  return `blur(${baseBlurPx + blurFade}px)`;
 };
 
 export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
@@ -27,7 +30,11 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
   const pendingUrlRef = useRef<string | null>(null);
   const isTransitioningRef = useRef(false);
 
-  const transition = appearance.backgroundTransition || { type: 'fade', durationMs: 900, easing: 'ease-out' as const };
+  const transition = {
+    type: appearance.backgroundTransition?.type || 'fade',
+    durationMs: Number(appearance.backgroundTransition?.durationMs ?? 900),
+    easing: appearance.backgroundTransition?.easing || 'ease-out'
+  } as const;
   const slideshow = appearance.slideshow || { enabled: false, intervalMs: 60000, mode: 'random' as const, includeUploaded: true, includeRemoteUrls: true };
 
   const slideshowWallpapers = useMemo(
@@ -108,7 +115,9 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
     img.onload = () => {
       if (preloadId !== preloadIdRef.current) return;
 
-      if (transition.type === 'none') {
+      const safeDurationMs = Number.isFinite(transition.durationMs) ? Math.max(0, transition.durationMs) : 900;
+
+      if (transition.type === 'none' || safeDurationMs <= 0 || !currentUrl) {
         setCurrentUrl(desiredUrl);
         setNextUrl(null);
         setIsNextVisible(false);
@@ -135,7 +144,7 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
 
       transitionTimeoutRef.current = window.setTimeout(() => {
         finalizeTransition(desiredUrl, preloadId);
-      }, transition.durationMs + 100);
+      }, safeDurationMs + 80);
     };
 
     img.onerror = () => {
@@ -151,7 +160,7 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
     };
   }, [desiredUrl, currentUrl, transition.type, transition.durationMs, slideshow.enabled, slideshowWallpapers.length]);
 
-  const duration = transition.type === 'none' ? 0 : transition.durationMs;
+  const duration = transition.type === 'none' ? 0 : (Number.isFinite(transition.durationMs) ? Math.max(0, transition.durationMs) : 900);
   const transitionCss = `opacity ${duration}ms ${transition.easing}, transform ${duration}ms ${transition.easing}, filter ${duration}ms ${transition.easing}`;
   const baseLayerStyle = {
     backgroundSize: 'cover',
@@ -159,22 +168,25 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
     backgroundRepeat: 'no-repeat',
     filter: `blur(${appearance.blur}px)`,
     willChange: 'opacity, transform, filter',
-    pointerEvents: 'none' as const,
-    transition: transitionCss
+    pointerEvents: 'none' as const
   };
 
   return <div className="fixed inset-0 pointer-events-none" style={{ backgroundColor: appearance.backgroundColor, zIndex: 0 }}>
     <div
       className="absolute inset-0"
-      style={{ ...baseLayerStyle, zIndex: 1, backgroundImage: currentUrl ? `url('${currentUrl}')` : undefined, ...transitionStyle(transition.type, true) }}
+      style={{ ...baseLayerStyle, zIndex: 1, backgroundImage: currentUrl ? `url('${currentUrl}')` : undefined, opacity: 1, transform: 'none', filter: `blur(${appearance.blur}px)` }}
     />
     {nextUrl && (
       <div
         className="absolute inset-0"
-        style={{ ...baseLayerStyle, zIndex: 2, backgroundImage: `url('${nextUrl}')`, ...transitionStyle(transition.type, isNextVisible) }}
-        onTransitionEnd={(event) => {
-          if (event.propertyName !== 'opacity' || !nextUrl) return;
-          finalizeTransition(nextUrl, preloadIdRef.current);
+        style={{
+          ...baseLayerStyle,
+          zIndex: 2,
+          backgroundImage: `url('${nextUrl}')`,
+          opacity: isNextVisible ? 1 : 0,
+          transform: getNextTransform(transition.type, isNextVisible),
+          filter: getNextFilter(transition.type, isNextVisible, appearance.blur),
+          transition: transitionCss
         }}
       />
     )}
