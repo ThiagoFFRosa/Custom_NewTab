@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { getSafeFileName, isAllowedMime } from '../utils/fileName.js';
 import { deleteUpload, listUploads, toUploadMeta } from '../services/upload.service.js';
+import { UPLOADS_DIR } from '../paths.js';
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ function createStorage(folder, label) {
   return multer({
     storage: multer.diskStorage({
       destination: async (_req, _file, cb) => {
-        const dir = path.resolve(`backend/uploads/${folder}`);
+        const dir = path.join(UPLOADS_DIR, folder);
         await fs.mkdir(dir, { recursive: true });
         cb(null, dir);
       },
