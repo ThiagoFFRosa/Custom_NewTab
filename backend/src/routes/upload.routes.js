@@ -35,7 +35,7 @@ router.post('/background', (req, res) => bgUploadSingle(req, res, async (err) =>
   const meta = toUploadMeta('background', req.file);
   const config = await getConfig();
   config.wallpapers = Array.isArray(config.wallpapers) ? config.wallpapers : [];
-  const wallpaper = { id: `wallpaper_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, type: 'upload', name: req.file.originalname, url: meta.url, filename: req.file.filename, source: 'local', createdAt: meta.createdAt, size: req.file.size, mimeType: req.file.mimetype };
+  const wallpaper = { id: `wallpaper_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, type: 'upload', name: req.file.originalname, url: meta.url, filename: req.file.filename, source: 'local', enabledForSlideshow: true, createdAt: meta.createdAt, size: req.file.size, mimeType: req.file.mimetype };
   config.wallpapers.push(wallpaper);
   config.settings.appearance.activeWallpaperId = wallpaper.id;
   config.settings.appearance.backgroundUrl = wallpaper.url;
@@ -48,7 +48,7 @@ router.post('/backgrounds', (req, res) => bgUploadMany(req, res, async (err) => 
   if (err) return res.status(400).json({ error: err.message });
   const files = req.files || [];
   const createdAt = new Date().toISOString();
-  const records = files.map((file) => ({ id: `wallpaper_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, type: 'upload', name: file.originalname, url: `/uploads/backgrounds/${file.filename}`, filename: file.filename, source: 'local', createdAt, size: file.size, mimeType: file.mimetype }));
+  const records = files.map((file) => ({ id: `wallpaper_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, type: 'upload', name: file.originalname, url: `/uploads/backgrounds/${file.filename}`, filename: file.filename, source: 'local', enabledForSlideshow: true, createdAt, size: file.size, mimeType: file.mimetype }));
   const config = await getConfig();
   config.wallpapers = Array.isArray(config.wallpapers) ? config.wallpapers : [];
   config.wallpapers.push(...records);

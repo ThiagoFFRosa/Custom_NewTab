@@ -23,6 +23,8 @@ export async function uploadWallpapers(files: File[]) {
 }
 export const deleteWallpaper = (id: string) => request('/api/wallpapers/' + encodeURIComponent(id), { method: 'DELETE' });
 export const deleteWallpapers = (ids: string[]) => request('/api/wallpapers/delete-many', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+export const updateWallpaper = (id: string, payload: Partial<Pick<WallpaperItem, 'enabledForSlideshow' | 'name'>>) => request<{ok:boolean; wallpaper: WallpaperItem}>('/api/wallpapers/' + encodeURIComponent(id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+export const useWallpaper = (id: string) => request<DashboardConfig>('/api/wallpapers/' + encodeURIComponent(id) + '/use', { method: 'POST' });
 
 async function upload(path: string, file: File) {
   const body = new FormData();
