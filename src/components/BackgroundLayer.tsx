@@ -19,58 +19,64 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
   const [current, setCurrent] = useState<string | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [showNext, setShowNext] = useState(false);
-  const idxRef = useRef(0);
+  const [slideshowIndex, setSlideshowIndex] = useState(0);
+  const lastUrlRef = useRef<string | null>(null);
 
   const transition = appearance.backgroundTransition || { type: 'fade', durationMs: 900, easing: 'ease-out' as const };
   const slideshow = appearance.slideshow || { enabled: false, intervalMs: 60000, mode: 'random' as const, includeUploaded: true, includeRemoteUrls: true };
-  const filtered = useMemo(() => wallpapers.filter((w) => (slideshow.includeUploaded && w.type === 'upload') || (slideshow.includeRemoteUrls && w.type === 'url')), [wallpapers, slideshow.includeUploaded, slideshow.includeRemoteUrls]);
-  const resolveTarget = () => {
-    if (slideshow.enabled && filtered.length >= 2) return filtered[idxRef.current % filtered.length]?.url || '';
-    if (appearance.activeWallpaperId) return wallpapers.find((w) => w.id === appearance.activeWallpaperId)?.url || appearance.backgroundUrl;
-    return appearance.backgroundType === 'url' ? appearance.backgroundUrl : '';
-  };
+  const slideshowWallpapers = useMemo(
+    () => wallpapers.filter((w) => w.enabledForSlideshow !== false)
+      .filter((w) => ((w.type === 'upload' || w.source === 'local') ? slideshow.includeUploaded : slideshow.includeRemoteUrls)),
+    [wallpapers, slideshow.includeUploaded, slideshow.includeRemoteUrls]
+  );
+
+  const activeWallpaperUrl = useMemo(() => {
+    if (appearance.activeWallpaperId) return wallpapers.find((w) => w.id === appearance.activeWallpaperId)?.url || null;
+    return null;
+  }, [appearance.activeWallpaperId, wallpapers]);
+
+  const desiredUrl = slideshow.enabled && slideshowWallpapers.length > 0
+    ? slideshowWallpapers[slideshowIndex % slideshowWallpapers.length]?.url || null
+    : activeWallpaperUrl || appearance.backgroundUrl || null;
+
+  useEffect(() => {
+    if (!slideshow.enabled || slideshowWallpapers.length < 2) return;
+    const timer = window.setInterval(() => {
+      setSlideshowIndex((prev) => {
+        if (slideshow.mode === 'sequential') return (prev + 1) % slideshowWallpapers.length;
+        let nextIdx = prev;
+        while (nextIdx === prev && slideshowWallpapers.length > 1) nextIdx = Math.floor(Math.random() * slideshowWallpapers.length);
+        return nextIdx;
+      });
+    }, Math.max(10000, Math.min(3600000, slideshow.intervalMs)));
+    return () => clearInterval(timer);
+  }, [slideshow.enabled, slideshow.intervalMs, slideshow.mode, slideshowWallpapers.length]);
 
   useEffect(() => {
     let cancelled = false;
-    const target = resolveTarget();
-    if (!target) return;
+    if (!desiredUrl || desiredUrl === lastUrlRef.current) return;
     const img = new Image();
     img.onload = () => {
       if (cancelled) return;
-      setNext(target);
+      setNext(desiredUrl);
       setShowNext(true);
       window.setTimeout(() => {
         if (cancelled) return;
-        setCurrent(target);
+        setCurrent(desiredUrl);
+        lastUrlRef.current = desiredUrl;
         setNext(null);
         setShowNext(false);
       }, transition.type === 'none' ? 0 : transition.durationMs);
     };
-    img.onerror = () => { if (!cancelled && slideshow.enabled && filtered.length >= 2) idxRef.current = (idxRef.current + 1) % filtered.length; };
-    img.src = target;
+    img.onerror = () => {
+      if (cancelled) return;
+      if (slideshow.enabled && slideshowWallpapers.length > 1) setSlideshowIndex((v) => (v + 1) % slideshowWallpapers.length);
+      setCurrent(null);
+      lastUrlRef.current = null;
+    };
+    img.src = desiredUrl;
     return () => { cancelled = true; };
-  }, [appearance.backgroundUrl, appearance.activeWallpaperId, appearance.backgroundType, wallpapers, slideshow.enabled, transition.type, transition.durationMs]);
-
-  useEffect(() => {
-    if (!slideshow.enabled || filtered.length < 2) return;
-    const timer = window.setInterval(() => {
-      if (slideshow.mode === 'random') {
-        let nextIdx = idxRef.current;
-        while (nextIdx === idxRef.current && filtered.length > 1) nextIdx = Math.floor(Math.random() * filtered.length);
-        idxRef.current = nextIdx;
-      } else idxRef.current = (idxRef.current + 1) % filtered.length;
-      const ev = new Event('slideshow-tick');
-      window.dispatchEvent(ev);
-      setCurrent((v) => v);
-    }, Math.max(10000, Math.min(3600000, slideshow.intervalMs)));
-    return () => clearInterval(timer);
-  }, [slideshow.enabled, slideshow.intervalMs, slideshow.mode, filtered.length]);
-
-  useEffect(() => {
-    const fn = () => setCurrent((v) => v);
-    window.addEventListener('slideshow-tick', fn);
-    return () => window.removeEventListener('slideshow-tick', fn);
-  }, []);
+  }, [desiredUrl, transition.durationMs, transition.type, slideshow.enabled, slideshowWallpapers.length]);
 
   const duration = transition.type === 'none' ? 0 : transition.durationMs;
   const common = { transition: `all ${duration}ms ${transition.easing}`, filter: `blur(${appearance.blur}px)`, transform: appearance.blur > 0 ? 'scale(1.05)' : 'scale(1)' } as React.CSSProperties;

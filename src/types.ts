@@ -50,6 +50,7 @@ export interface WallpaperItem {
   url: string;
   filename?: string;
   source: "local" | "remote";
+  enabledForSlideshow?: boolean;
   createdAt: string;
   size?: number;
   mimeType?: string;

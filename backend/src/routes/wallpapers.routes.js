@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs/promises';
-import { getConfig, saveConfig } from '../services/config.service.js';
+import { getConfig, normalizeConfigShape, saveConfig } from '../services/config.service.js';
 
 import { UPLOADS_DIR } from '../paths.js';
 
@@ -14,8 +14,7 @@ const isValidHttpUrl = (value) => {
 const id = () => `wallpaper_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 function normalizeConfig(config) {
-  config.wallpapers = Array.isArray(config.wallpapers) ? config.wallpapers : [];
-  return config;
+  return normalizeConfigShape(config);
 }
 
 router.get('/', async (_req, res) => {
@@ -31,12 +30,39 @@ router.post('/url', async (req, res) => {
     const url = String(raw || '').trim();
     if (!url) continue;
     if (!isValidHttpUrl(url)) { invalid.push(url); continue; }
-    valid.push({ id: id(), type: 'url', name: url.split('/').pop() || 'Remote Wallpaper', url, source: 'remote', createdAt: new Date().toISOString() });
+    valid.push({ id: id(), type: 'url', name: url.split('/').pop() || 'Remote Wallpaper', url, source: 'remote', enabledForSlideshow: true, createdAt: new Date().toISOString() });
   }
   const config = normalizeConfig(await getConfig());
   config.wallpapers.push(...valid);
   await saveConfig(config);
   res.json({ ok: true, added: valid, invalid });
+});
+
+router.put('/:id', async (req, res) => {
+  const config = normalizeConfig(await getConfig());
+  const wallpaper = config.wallpapers.find((w) => w.id === req.params.id);
+  if (!wallpaper) return res.status(404).json({ error: 'Wallpaper não encontrado' });
+
+  if (typeof req.body?.enabledForSlideshow === 'boolean') {
+    wallpaper.enabledForSlideshow = req.body.enabledForSlideshow;
+  }
+  if (typeof req.body?.name === 'string' && req.body.name.trim()) {
+    wallpaper.name = req.body.name.trim();
+  }
+
+  await saveConfig(config);
+  res.json({ ok: true, wallpaper });
+});
+
+router.post('/:id/use', async (req, res) => {
+  const config = normalizeConfig(await getConfig());
+  const wallpaper = config.wallpapers.find((w) => w.id === req.params.id);
+  if (!wallpaper) return res.status(404).json({ error: 'Wallpaper não encontrado' });
+  config.settings.appearance.activeWallpaperId = wallpaper.id;
+  config.settings.appearance.backgroundUrl = wallpaper.url;
+  config.settings.appearance.backgroundType = 'url';
+  const saved = await saveConfig(config);
+  res.json(saved);
 });
 
 router.delete('/:id', async (req, res) => {

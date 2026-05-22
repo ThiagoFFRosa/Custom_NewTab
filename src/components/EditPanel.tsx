@@ -4,7 +4,7 @@ import { DashboardConfig, Shortcut, Category, Widget } from '../types';
 import { GlassCard } from './GlassCard';
 import { IconPicker } from './IconPicker';
 import { ColorPickerField } from './ColorPickerField';
-import { addWallpaperUrls, deleteIcon, deleteWallpaper, deleteWallpapers, getWallpapers, listIcons, uploadIcon, uploadWallpapers } from '../services/api';
+import { addWallpaperUrls, deleteIcon, deleteWallpaper, deleteWallpapers, getWallpapers, listIcons, updateWallpaper, uploadIcon, uploadWallpapers } from '../services/api';
 
 interface EditPanelProps {
   config: DashboardConfig;
@@ -105,9 +105,26 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [msg, setMsg] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const refresh = async () => { const data = await getWallpapers(); setWallpapers(data); updateConfig((p: DashboardConfig) => ({ ...p, wallpapers: data })); };
+
+  const refresh = async () => {
+    const data = await getWallpapers();
+    setWallpapers(data);
+    updateConfig((p: DashboardConfig) => ({ ...p, wallpapers: data }));
+  };
+
   useEffect(() => { refresh().catch(console.error); }, []);
-  const updateAppearance = (changes: any) => updateConfig((prev: DashboardConfig) => ({ ...prev, settings: { ...prev.settings, appearance: { ...prev.settings.appearance, ...changes } } }));
+
+  const updateAppearance = (changes: any) => updateConfig((prev: DashboardConfig) => ({
+    ...prev,
+    settings: { ...prev.settings, appearance: { ...prev.settings.appearance, ...changes } }
+  }));
+
+  const saveAndApplyConfig = async (nextConfig: DashboardConfig) => {
+    updateConfig(nextConfig);
+  };
+
+  const activeWallpaperId = appearance.activeWallpaperId;
+
   return <div className="space-y-6 text-white text-sm">
     <div className="space-y-2">
       <label className="block text-white/70 font-medium">Upload wallpapers</label>
@@ -117,7 +134,8 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
     <div className="space-y-2">
       <label className="block text-white/70 font-medium">Add wallpapers by URL</label>
       <textarea value={urlText} onChange={(e)=>setUrlText(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2" rows={4} placeholder="https://... (uma por linha)" />
-      <button onClick={async ()=>{ const urls=urlText.split('\n').map((v)=>v.trim()).filter(Boolean); if(!urls.length) return; try{const res=await addWallpaperUrls(urls); setMsg(res.invalid.length?`Algumas URLs inválidas: ${res.invalid.length}`:'URLs adicionadas.'); setUrlText(''); await refresh();}catch{setMsg('Falha ao adicionar URLs.');} }} className="px-3 py-2 rounded bg-white/10 hover:bg-white/20">Add URLs</button>
+      <button onClick={async ()=>{ const urls=urlText.split('
+').map((v)=>v.trim()).filter(Boolean); if(!urls.length) return; try{const res=await addWallpaperUrls(urls); setMsg(res.invalid.length?`Algumas URLs inválidas: ${res.invalid.length}`:'URLs adicionadas.'); setUrlText(''); await refresh();}catch{setMsg('Falha ao adicionar URLs.');} }} className="px-3 py-2 rounded bg-white/10 hover:bg-white/20">Add URLs</button>
       {msg && <p className="text-xs text-white/60">{msg}</p>}
     </div>
     <div className="flex gap-2">
@@ -125,25 +143,38 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
       <button onClick={()=>setSelectedIds([])} className="px-2 py-1 bg-white/10 rounded">Clear selection</button>
       <button onClick={async ()=>{ if(!selectedIds.length || !window.confirm('Deletar selecionados?')) return; await deleteWallpapers(selectedIds); setSelectedIds([]); await refresh(); }} className="px-2 py-1 bg-rose-500/20 rounded">Delete selected</button>
     </div>
-    <div className="grid grid-cols-2 gap-2">{wallpapers.map((w:any)=><div key={w.id} className="border border-white/10 rounded p-2">
-      <div className="h-20 rounded bg-cover bg-center" style={{backgroundImage:`url(${w.url})`}} />
-      <div className="text-xs mt-1 truncate">{w.name}</div><div className="text-[10px] opacity-60">{w.type}</div>
-      <div className="flex gap-2 mt-1"><input type="checkbox" checked={selectedIds.includes(w.id)} onChange={(e)=>setSelectedIds((prev)=>e.target.checked?[...prev,w.id]:prev.filter(id=>id!==w.id))}/><button onClick={()=>updateAppearance({backgroundType:'url',activeWallpaperId:w.id,backgroundUrl:w.url})} className="text-xs">Use</button><button onClick={async ()=>{ if(!window.confirm('Deletar wallpaper?')) return; await deleteWallpaper(w.id); await refresh(); }} className="text-xs text-rose-300">Del</button></div>
-    </div>)}</div>
+    <div className="grid grid-cols-1 gap-2">{wallpapers.map((w:any)=>{
+      const isActive = activeWallpaperId === w.id;
+      const inSlideshow = w.enabledForSlideshow !== false;
+      return <div key={w.id} className="border border-white/10 rounded p-2">
+        <div className="h-24 rounded bg-cover bg-center" style={{backgroundImage:`url(${w.url})`}} />
+        <div className="text-xs mt-1 truncate">{w.name}</div>
+        <div className="text-[10px] opacity-60">{w.source === 'remote' ? 'URL' : 'Local'}</div>
+        <div className="flex gap-1 mt-1 text-[10px]">{isActive && <span className="px-1 py-0.5 rounded bg-emerald-500/30">Active</span>}{inSlideshow && <span className="px-1 py-0.5 rounded bg-sky-500/30">Slideshow</span>}</div>
+        <div className="flex gap-2 mt-2 items-center"><button onClick={async ()=>{ const next={...config,settings:{...config.settings,appearance:{...config.settings.appearance,activeWallpaperId:w.id,backgroundUrl:w.url,backgroundType:'url'}}}; await saveAndApplyConfig(next); }} className="text-xs px-2 py-1 bg-white/10 rounded">Use</button><button onClick={async ()=>{ await updateWallpaper(w.id, { enabledForSlideshow: !inSlideshow }); await refresh(); }} className="text-xs px-2 py-1 bg-white/10 rounded">{inSlideshow ? 'Off slideshow' : 'In slideshow'}</button></div>
+        <div className="flex gap-2 mt-2 items-center"><label className="text-xs flex items-center gap-1"><input type="checkbox" checked={selectedIds.includes(w.id)} onChange={(e)=>setSelectedIds((prev)=>e.target.checked?[...prev,w.id]:prev.filter(id=>id!==w.id))}/>Select</label><button onClick={async ()=>{ if(!window.confirm('Deletar wallpaper?')) return; await deleteWallpaper(w.id); await refresh(); }} className="text-xs text-rose-300">Delete</button></div>
+      </div>
+    })}</div>
     <div className="space-y-2 border-t border-white/10 pt-4">
-      <label>Slideshow</label><input type="checkbox" checked={appearance.slideshow?.enabled || false} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),enabled:e.target.checked}})} />
-      <input type="number" min={10000} max={3600000} value={appearance.slideshow?.intervalMs || 60000} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),intervalMs:parseInt(e.target.value)||60000}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1" />
+      <label>Slideshow enabled</label><input type="checkbox" checked={appearance.slideshow?.enabled || false} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),enabled:e.target.checked}})} />
       <select value={appearance.slideshow?.mode || 'random'} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),mode:e.target.value}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1"><option value="random">random</option><option value="sequential">sequential</option></select>
+      <input type="number" min={10000} max={3600000} value={appearance.slideshow?.intervalMs || 60000} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),intervalMs:parseInt(e.target.value)||60000}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1" />
+      <div className="flex gap-4"><label><input type="checkbox" checked={appearance.slideshow?.includeUploaded ?? true} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),includeUploaded:e.target.checked}})} /> Include uploaded</label><label><input type="checkbox" checked={appearance.slideshow?.includeRemoteUrls ?? true} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),includeRemoteUrls:e.target.checked}})} /> Include URL</label></div>
     </div>
     <div className="space-y-2 border-t border-white/10 pt-4">
       <label>Transition</label><select value={appearance.backgroundTransition?.type || 'fade'} onChange={e=>updateAppearance({backgroundTransition:{...(appearance.backgroundTransition||{}),type:e.target.value}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1"><option>none</option><option>fade</option><option>zoom-fade</option><option>blur-fade</option><option>slide-left</option><option>slide-right</option></select>
       <input type="range" min={200} max={3000} value={appearance.backgroundTransition?.durationMs || 900} onChange={e=>updateAppearance({backgroundTransition:{...(appearance.backgroundTransition||{}),durationMs:parseInt(e.target.value)}})} className="w-full" />
     </div>
-    <ColorPickerField label="Background Color (Fallback)" value={appearance.backgroundColor || '#050505'} onChange={val => updateAppearance({ backgroundColor: val })} />
-    <ColorPickerField label="Overlay Color" value={appearance.overlayColor || '#000000'} onChange={val => updateAppearance({ overlayColor: val })} />
+    <div className="space-y-2 border-t border-white/10 pt-4">
+      <label className="block text-white/70 font-medium">Fallback / Base Color</label>
+      <ColorPickerField label="Background Color" value={appearance.backgroundColor || '#050505'} onChange={val => updateAppearance({ backgroundColor: val })} />
+      <ColorPickerField label="Overlay Color" value={appearance.overlayColor || '#000000'} onChange={val => updateAppearance({ overlayColor: val })} />
+      <ColorPickerField label="Accent Color" value={appearance.accentColor || '#ffffff'} onChange={val => updateAppearance({ accentColor: val })} />
+    </div>
     <div className="pt-4 border-t border-white/10"><button onClick={resetConfig} className="text-rose-300">Reset to Factory Defaults</button></div>
   </div>;
 }
+
 
 function ShortcutsTab({ config, updateConfig }: any) {
   const [icons, setIcons] = useState<Array<{filename:string;url:string}>>([]);
