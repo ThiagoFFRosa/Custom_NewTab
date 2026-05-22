@@ -1,71 +1,84 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Settings, WallpaperItem } from '../types';
 
-interface BackgroundLayerProps {
-  url?: string;
-  backgroundColor?: string;
-  overlayColor?: string;
-  type: "url" | "random" | "color";
-  overlayOpacity: number;
-  blur: number;
-  vignette: number;
+interface Props {
+  appearance: Settings['appearance'];
+  wallpapers?: WallpaperItem[];
 }
 
-const randomBackgrounds = [
-  "https://images.unsplash.com/photo-1495107334309-fcf20504a5ab?q=80&w=2670&auto=format&fit=crop&grayscale=true",
-  "https://images.unsplash.com/photo-1542204165-65bf26472b9b?q=80&w=2574&auto=format&fit=crop&grayscale=true",
-  "https://images.unsplash.com/photo-1517721867165-f5f4b46c6ea1?q=80&w=2670&auto=format&fit=crop&grayscale=true",
-  "https://images.unsplash.com/photo-1440688807730-73e4e20eff83?q=80&w=2670&auto=format&fit=crop&grayscale=true",
-  "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?q=80&w=2670&auto=format&fit=crop&grayscale=true",
-  "https://images.unsplash.com/photo-1603584824208-eb70ff73a985?q=80&w=2564&auto=format&fit=crop&grayscale=true"
-];
+const transitionStyle = (type: string, visible: boolean) => {
+  const base = { opacity: visible ? 1 : 0, transform: 'translateX(0) scale(1)', filter: 'blur(0px)' } as any;
+  if (type === 'zoom-fade' && !visible) base.transform = 'scale(1.04)';
+  if (type === 'blur-fade' && !visible) base.filter = 'blur(12px)';
+  if (type === 'slide-left' && !visible) base.transform = 'translateX(3%)';
+  if (type === 'slide-right' && !visible) base.transform = 'translateX(-3%)';
+  return base;
+};
 
-export function BackgroundLayer({ url, backgroundColor = "#050505", overlayColor = "#000000", type, overlayOpacity, blur, vignette }: BackgroundLayerProps) {
-  type = type || 'url';
-  const [imgUrl, setImgUrl] = useState<string | null>(type === 'url' ? (url || null) : type === 'random' ? randomBackgrounds[0] : null);
+export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
+  const [current, setCurrent] = useState<string | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [showNext, setShowNext] = useState(false);
+  const idxRef = useRef(0);
 
-  useEffect(() => {
-    if (type === 'random') {
-      // Use picsum for a random grayscale image each time
-      setImgUrl(`https://picsum.photos/1920/1080?grayscale&random=${Date.now()}`);
-    } else if (type === 'url') {
-      setImgUrl(url || null);
-    } else {
-      setImgUrl(null);
-    }
-  }, [url, type]);
-
-  const backgroundStyle: React.CSSProperties = {
-    filter: `blur(${blur}px)`,
-    transform: blur > 0 ? 'scale(1.05)' : 'scale(1)',
-    backgroundColor: backgroundColor,
+  const transition = appearance.backgroundTransition || { type: 'fade', durationMs: 900, easing: 'ease-out' as const };
+  const slideshow = appearance.slideshow || { enabled: false, intervalMs: 60000, mode: 'random' as const, includeUploaded: true, includeRemoteUrls: true };
+  const filtered = useMemo(() => wallpapers.filter((w) => (slideshow.includeUploaded && w.type === 'upload') || (slideshow.includeRemoteUrls && w.type === 'url')), [wallpapers, slideshow.includeUploaded, slideshow.includeRemoteUrls]);
+  const resolveTarget = () => {
+    if (slideshow.enabled && filtered.length >= 2) return filtered[idxRef.current % filtered.length]?.url || '';
+    if (appearance.activeWallpaperId) return wallpapers.find((w) => w.id === appearance.activeWallpaperId)?.url || appearance.backgroundUrl;
+    return appearance.backgroundType === 'url' ? appearance.backgroundUrl : '';
   };
 
-  if (imgUrl && type !== 'color') {
-    backgroundStyle.backgroundImage = `url('${imgUrl}')`;
-  }
+  useEffect(() => {
+    let cancelled = false;
+    const target = resolveTarget();
+    if (!target) return;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      setNext(target);
+      setShowNext(true);
+      window.setTimeout(() => {
+        if (cancelled) return;
+        setCurrent(target);
+        setNext(null);
+        setShowNext(false);
+      }, transition.type === 'none' ? 0 : transition.durationMs);
+    };
+    img.onerror = () => { if (!cancelled && slideshow.enabled && filtered.length >= 2) idxRef.current = (idxRef.current + 1) % filtered.length; };
+    img.src = target;
+    return () => { cancelled = true; };
+  }, [appearance.backgroundUrl, appearance.activeWallpaperId, appearance.backgroundType, wallpapers, slideshow.enabled, transition.type, transition.durationMs]);
 
-  return (
-    <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor }}>
-      {/* Base Image or Color */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"
-        style={backgroundStyle}
-      />
-      
-      {/* Overlay opacity and color */}
-      <div 
-        className="absolute inset-0 transition-opacity duration-500"
-        style={{ backgroundColor: overlayColor, opacity: overlayOpacity }}
-      />
+  useEffect(() => {
+    if (!slideshow.enabled || filtered.length < 2) return;
+    const timer = window.setInterval(() => {
+      if (slideshow.mode === 'random') {
+        let nextIdx = idxRef.current;
+        while (nextIdx === idxRef.current && filtered.length > 1) nextIdx = Math.floor(Math.random() * filtered.length);
+        idxRef.current = nextIdx;
+      } else idxRef.current = (idxRef.current + 1) % filtered.length;
+      const ev = new Event('slideshow-tick');
+      window.dispatchEvent(ev);
+      setCurrent((v) => v);
+    }, Math.max(10000, Math.min(3600000, slideshow.intervalMs)));
+    return () => clearInterval(timer);
+  }, [slideshow.enabled, slideshow.intervalMs, slideshow.mode, filtered.length]);
 
-      {/* Vignette */}
-      <div 
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          boxShadow: `inset 0 0 ${vignette}vmin rgba(0,0,0,0.8)`
-        }}
-      />
-    </div>
-  );
+  useEffect(() => {
+    const fn = () => setCurrent((v) => v);
+    window.addEventListener('slideshow-tick', fn);
+    return () => window.removeEventListener('slideshow-tick', fn);
+  }, []);
+
+  const duration = transition.type === 'none' ? 0 : transition.durationMs;
+  const common = { transition: `all ${duration}ms ${transition.easing}`, filter: `blur(${appearance.blur}px)`, transform: appearance.blur > 0 ? 'scale(1.05)' : 'scale(1)' } as React.CSSProperties;
+
+  return <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor: appearance.backgroundColor }}>
+    <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ ...common, backgroundImage: current ? `url('${current}')` : undefined, ...transitionStyle(transition.type, true) }} />
+    {next && <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ ...common, backgroundImage: `url('${next}')`, ...transitionStyle(transition.type, showNext) }} />}
+    <div className="absolute inset-0" style={{ backgroundColor: appearance.overlayColor, opacity: appearance.overlayOpacity }} />
+    <div className="absolute inset-0" style={{ boxShadow: `inset 0 0 ${appearance.vignette}vmin rgba(0,0,0,0.8)` }} />
+  </div>;
 }
-

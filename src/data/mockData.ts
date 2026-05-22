@@ -9,24 +9,22 @@ export const initialMockData: DashboardConfig = {
       placeholder: "Search with Google or enter address"
     },
     appearance: {
-      backgroundType: "url",
-      backgroundUrl: "https://images.unsplash.com/photo-1541819382-777ec81d39cd?q=80&w=2670&auto=format&fit=crop", 
+      backgroundType: "color",
+      backgroundUrl: "",
+      activeWallpaperId: "",
       backgroundColor: "#050505",
       overlayColor: "#000000",
       overlayOpacity: 0.2,
+      backgroundTransition: { type: "fade", durationMs: 900, easing: "ease-out" },
+      slideshow: { enabled: false, intervalMs: 60000, mode: "random", includeUploaded: true, includeRemoteUrls: true },
       blur: 0,
       vignette: 85, // percentage for box-shadow inset
       accentColor: "#ffffff",
       density: "comfortable"
     }
   },
-  availableBackgrounds: [
-    "/backgrounds/senna-dark.jpg",
-    "/backgrounds/garage-dark.jpg",
-    "/backgrounds/abstract-dark.jpg",
-    "https://images.unsplash.com/photo-1541819382-777ec81d39cd?q=80&w=2670&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?q=80&w=2670&auto=format&fit=crop"
-  ],
+  availableBackgrounds: [],
+  wallpapers: [],
   categories: [
     { id: "cat_web", name: "Web", slug: "web", enabled: true, sortOrder: 1 },
     { id: "cat_dev", name: "Dev", slug: "dev", enabled: true, sortOrder: 2 },

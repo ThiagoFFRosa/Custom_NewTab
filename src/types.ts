@@ -40,16 +40,28 @@ export interface Widget {
   sortOrder: number;
 }
 
+export type BackgroundTransitionType = "none" | "fade" | "zoom-fade" | "blur-fade" | "slide-left" | "slide-right";
+export type BackgroundEasing = "ease" | "ease-in" | "ease-out" | "ease-in-out" | "linear";
+
+export interface WallpaperItem {
+  id: string;
+  type: "upload" | "url";
+  name: string;
+  url: string;
+  filename?: string;
+  source: "local" | "remote";
+  createdAt: string;
+  size?: number;
+  mimeType?: string;
+}
+
 export interface Settings {
   title: string;
-  search: {
-    engineName: string;
-    searchUrl: string;
-    placeholder: string;
-  };
+  search: { engineName: string; searchUrl: string; placeholder: string; };
   appearance: {
     backgroundType: "url" | "random" | "color";
     backgroundUrl: string;
+    activeWallpaperId?: string;
     backgroundColor: string;
     overlayColor: string;
     overlayOpacity: number;
@@ -57,6 +69,8 @@ export interface Settings {
     vignette: number;
     accentColor: string;
     density: "compact" | "comfortable" | "spacious";
+    backgroundTransition?: { type: BackgroundTransitionType; durationMs: number; easing: BackgroundEasing; };
+    slideshow?: { enabled: boolean; intervalMs: number; mode: "random" | "sequential"; includeUploaded: boolean; includeRemoteUrls: boolean; };
   };
 }
 
@@ -66,4 +80,5 @@ export interface DashboardConfig {
   shortcuts: Shortcut[];
   widgets: Widget[];
   availableBackgrounds: string[];
+  wallpapers?: WallpaperItem[];
 }

@@ -17,7 +17,7 @@ export default function App() {
   const { config, updateConfig, resetConfig } = useDashboardConfig();
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
 
-  const { settings, categories, shortcuts, widgets } = config;
+  const { settings, categories, shortcuts, widgets, wallpapers } = config;
 
   const leftWidgets = widgets.filter(w => w.position === 'left').sort(sortByOrder);
   const rightWidgets = widgets.filter(w => w.position === 'right').sort(sortByOrder);
@@ -25,7 +25,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen font-sans selection:bg-white/30 selection:text-white relative">
-      <BackgroundLayer {...settings.appearance} type={settings.appearance.backgroundType} url={settings.appearance.backgroundUrl} />
+      <BackgroundLayer appearance={settings.appearance} wallpapers={wallpapers || []} />
 
       {/* Main Layout */}
       <div className="flex flex-col min-h-screen p-6 md:p-12 relative z-10 w-full max-w-[1920px] mx-auto">
