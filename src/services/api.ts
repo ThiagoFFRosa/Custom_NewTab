@@ -1,4 +1,4 @@
-import { DashboardConfig } from '../types';
+import { DashboardConfig, WallpaperItem } from '../types';
 
 const API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL as string) || '';
 
@@ -13,6 +13,16 @@ export const saveConfig = (config: DashboardConfig) => request<DashboardConfig>(
 export const resetConfig = () => request<DashboardConfig>('/api/config/reset', { method: 'POST' });
 export const exportConfig = () => request<DashboardConfig>('/api/config/export');
 export const importConfig = (json: DashboardConfig) => request<DashboardConfig>('/api/config/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(json) });
+
+export const getWallpapers = () => request<WallpaperItem[]>('/api/wallpapers');
+export const addWallpaperUrls = (urls: string[]) => request<{ok:boolean; added: WallpaperItem[]; invalid: string[]}>('/api/wallpapers/url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls }) });
+export async function uploadWallpapers(files: File[]) {
+  const body = new FormData();
+  files.forEach((f) => body.append('files', f));
+  return request<{ok:boolean; files: WallpaperItem[]}>('/api/uploads/backgrounds', { method: 'POST', body });
+}
+export const deleteWallpaper = (id: string) => request('/api/wallpapers/' + encodeURIComponent(id), { method: 'DELETE' });
+export const deleteWallpapers = (ids: string[]) => request('/api/wallpapers/delete-many', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
 
 async function upload(path: string, file: File) {
   const body = new FormData();

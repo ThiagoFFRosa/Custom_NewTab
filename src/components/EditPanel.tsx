@@ -4,7 +4,7 @@ import { DashboardConfig, Shortcut, Category, Widget } from '../types';
 import { GlassCard } from './GlassCard';
 import { IconPicker } from './IconPicker';
 import { ColorPickerField } from './ColorPickerField';
-import { deleteBackground, deleteIcon, listBackgrounds, listIcons, uploadBackground, uploadIcon } from '../services/api';
+import { addWallpaperUrls, deleteIcon, deleteWallpaper, deleteWallpapers, getWallpapers, listIcons, uploadIcon, uploadWallpapers } from '../services/api';
 
 interface EditPanelProps {
   config: DashboardConfig;
@@ -99,188 +99,50 @@ export function EditPanel({ config, updateConfig, resetConfig, isOpen, setIsOpen
 // --- Tabs Implementation ---
 
 function AppearanceTab({ config, updateConfig, resetConfig }: any) {
-  const { appearance, search } = config.settings;
-  const [backgrounds, setBackgrounds] = useState<Array<{filename:string;url:string}>>([]);
-
-  const refreshBackgrounds = async () => {
-    try { setBackgrounds(await listBackgrounds()); } catch (e) { console.error(e); }
-  };
-
-  useEffect(() => { refreshBackgrounds(); }, []);
-  const updateAppearance = (changes: any) => {
-    updateConfig((prev: DashboardConfig) => ({
-      ...prev,
-      settings: { ...prev.settings, appearance: { ...prev.settings.appearance, ...changes } }
-    }));
-  };
-  const updateSearch = (changes: any) => {
-    updateConfig((prev: DashboardConfig) => ({
-      ...prev,
-      settings: { ...prev.settings, search: { ...prev.settings.search, ...changes } }
-    }));
-  };
-
-  return (
-    <div className="space-y-8 text-white text-sm">
-      <div className="space-y-4 border-b border-white/10 pb-6">
-        <label className="block text-white/70 font-medium">Search Bar Placeholder</label>
-        <input 
-          type="text" 
-          value={search.placeholder || ''} 
-          onChange={e => updateSearch({ placeholder: e.target.value })}
-          className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-white/30 text-white"
-          placeholder="Search placeholder..."
-        />
-      </div>
-
-      <div className="space-y-4">
-        <label className="block text-white/70 font-medium">Background Type</label>
-        <div className="flex bg-black/40 rounded-lg p-1">
-          {['url', 'color', 'random'].map(t => (
-            <button
-              key={t}
-              onClick={() => updateAppearance({ backgroundType: t })}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
-                appearance.backgroundType === t ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {appearance.backgroundType === 'url' && (
-        <div className="space-y-4">
-          <label className="block text-white/70 font-medium">Background Image</label>
-          <input 
-            type="text"
-            value={appearance.backgroundUrl}
-            onChange={e => updateAppearance({ backgroundUrl: e.target.value })}
-            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-white/30 text-white mb-2"
-            placeholder="Image URL..."
-          />
-          <input
-             type="file"
-             accept="image/png,image/jpeg,image/webp"
-             onChange={async (e) => {
-               const file = e.target.files?.[0];
-               if (!file) return;
-               try {
-                 const uploaded = await uploadBackground(file);
-                 await refreshBackgrounds();
-                 updateAppearance({ backgroundType: 'url', backgroundUrl: uploaded.url });
-               } catch (err) {
-                 console.error('Falha no upload de background', err);
-               }
-             }}
-             className="w-full text-xs text-white/50 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 mb-4 cursor-pointer"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            {backgrounds.map((bg) => (
-              <button
-                key={bg.filename}
-                onClick={() => updateAppearance({ backgroundType: 'url', backgroundUrl: bg.url })}
-                className={`h-24 rounded-lg bg-cover bg-center border-2 transition-all ${
-                  appearance.backgroundUrl === bg.url ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-100'
-                }`}
-                style={{ backgroundImage: `url(${bg.url})` }}
-              >
-                <span
-                  onClick={(e) => { e.stopPropagation(); if (confirm('Deletar imagem?')) deleteBackground(bg.filename).then(refreshBackgrounds).catch(console.error); }}
-                  className="inline-flex text-[10px] bg-black/60 px-2 py-1 rounded ml-1 mt-1"
-                >del</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="pt-4 border-t border-white/10 space-y-6">
-        <ColorPickerField 
-          label="Background Color (Fallback)" 
-          value={appearance.backgroundColor || '#050505'}
-          onChange={val => updateAppearance({ backgroundColor: val })}
-        />
-        <ColorPickerField 
-          label="Overlay Color" 
-          value={appearance.overlayColor || '#000000'}
-          onChange={val => updateAppearance({ overlayColor: val })}
-        />
-        <ColorPickerField 
-          label="Overall Accent Color" 
-          value={appearance.accentColor || '#ffffff'}
-          onChange={val => updateAppearance({ accentColor: val })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="flex justify-between text-white/70 font-medium">
-          <span>Overlay Opacity</span>
-          <span>{Math.round(appearance.overlayOpacity * 100)}%</span>
-        </label>
-        <input 
-          type="range" min="0" max="1" step="0.05"
-          value={appearance.overlayOpacity}
-          onChange={e => updateAppearance({ overlayOpacity: parseFloat(e.target.value) })}
-          className="w-full accent-white"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="flex justify-between text-white/70 font-medium">
-          <span>Blur</span>
-          <span>{appearance.blur}px</span>
-        </label>
-        <input 
-          type="range" min="0" max="20" step="1"
-          value={appearance.blur}
-          onChange={e => updateAppearance({ blur: parseInt(e.target.value) })}
-          className="w-full accent-white"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="flex justify-between text-white/70 font-medium">
-          <span>Vignette Intesity</span>
-          <span>{appearance.vignette}%</span>
-        </label>
-        <input 
-          type="range" min="0" max="150" step="10"
-          value={appearance.vignette}
-          onChange={e => updateAppearance({ vignette: parseInt(e.target.value) })}
-          className="w-full accent-white"
-        />
-      </div>
-
-      <div className="space-y-4">
-        <label className="block text-white/70 font-medium">Density</label>
-        <div className="flex bg-black/40 rounded-lg p-1">
-          {['compact', 'comfortable', 'spacious'].map(d => (
-            <button
-              key={d}
-              onClick={() => updateAppearance({ density: d })}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
-                appearance.density === d ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="pt-8 border-t border-white/10">
-        <button 
-          onClick={resetConfig}
-          className="flex items-center gap-2 text-rose-400 hover:text-rose-300 transition-colors py-2 px-4 rounded-lg bg-rose-500/10 hover:bg-rose-500/20"
-        >
-          <RotateCcw size={16} />
-          Reset to Factory Defaults
-        </button>
-      </div>
+  const { appearance } = config.settings;
+  const [wallpapers, setWallpapers] = useState(config.wallpapers || []);
+  const [urlText, setUrlText] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [msg, setMsg] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const refresh = async () => { const data = await getWallpapers(); setWallpapers(data); updateConfig((p: DashboardConfig) => ({ ...p, wallpapers: data })); };
+  useEffect(() => { refresh().catch(console.error); }, []);
+  const updateAppearance = (changes: any) => updateConfig((prev: DashboardConfig) => ({ ...prev, settings: { ...prev.settings, appearance: { ...prev.settings.appearance, ...changes } } }));
+  return <div className="space-y-6 text-white text-sm">
+    <div className="space-y-2">
+      <label className="block text-white/70 font-medium">Upload wallpapers</label>
+      <input type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={async (e)=>{ const files=Array.from(e.target.files||[]); if(!files.length) return; setIsUploading(true); try{await uploadWallpapers(files); await refresh(); setMsg('Upload concluído.');}catch{setMsg('Falha no upload.');} finally{setIsUploading(false);} }} className="w-full text-xs" />
+      {isUploading && <p className="text-xs text-white/60">Uploading...</p>}
     </div>
-  );
+    <div className="space-y-2">
+      <label className="block text-white/70 font-medium">Add wallpapers by URL</label>
+      <textarea value={urlText} onChange={(e)=>setUrlText(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2" rows={4} placeholder="https://... (uma por linha)" />
+      <button onClick={async ()=>{ const urls=urlText.split('\n').map((v)=>v.trim()).filter(Boolean); if(!urls.length) return; try{const res=await addWallpaperUrls(urls); setMsg(res.invalid.length?`Algumas URLs inválidas: ${res.invalid.length}`:'URLs adicionadas.'); setUrlText(''); await refresh();}catch{setMsg('Falha ao adicionar URLs.');} }} className="px-3 py-2 rounded bg-white/10 hover:bg-white/20">Add URLs</button>
+      {msg && <p className="text-xs text-white/60">{msg}</p>}
+    </div>
+    <div className="flex gap-2">
+      <button onClick={()=>setSelectedIds(wallpapers.map((w:any)=>w.id))} className="px-2 py-1 bg-white/10 rounded">Select all</button>
+      <button onClick={()=>setSelectedIds([])} className="px-2 py-1 bg-white/10 rounded">Clear selection</button>
+      <button onClick={async ()=>{ if(!selectedIds.length || !window.confirm('Deletar selecionados?')) return; await deleteWallpapers(selectedIds); setSelectedIds([]); await refresh(); }} className="px-2 py-1 bg-rose-500/20 rounded">Delete selected</button>
+    </div>
+    <div className="grid grid-cols-2 gap-2">{wallpapers.map((w:any)=><div key={w.id} className="border border-white/10 rounded p-2">
+      <div className="h-20 rounded bg-cover bg-center" style={{backgroundImage:`url(${w.url})`}} />
+      <div className="text-xs mt-1 truncate">{w.name}</div><div className="text-[10px] opacity-60">{w.type}</div>
+      <div className="flex gap-2 mt-1"><input type="checkbox" checked={selectedIds.includes(w.id)} onChange={(e)=>setSelectedIds((prev)=>e.target.checked?[...prev,w.id]:prev.filter(id=>id!==w.id))}/><button onClick={()=>updateAppearance({backgroundType:'url',activeWallpaperId:w.id,backgroundUrl:w.url})} className="text-xs">Use</button><button onClick={async ()=>{ if(!window.confirm('Deletar wallpaper?')) return; await deleteWallpaper(w.id); await refresh(); }} className="text-xs text-rose-300">Del</button></div>
+    </div>)}</div>
+    <div className="space-y-2 border-t border-white/10 pt-4">
+      <label>Slideshow</label><input type="checkbox" checked={appearance.slideshow?.enabled || false} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),enabled:e.target.checked}})} />
+      <input type="number" min={10000} max={3600000} value={appearance.slideshow?.intervalMs || 60000} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),intervalMs:parseInt(e.target.value)||60000}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1" />
+      <select value={appearance.slideshow?.mode || 'random'} onChange={e=>updateAppearance({slideshow:{...(appearance.slideshow||{}),mode:e.target.value}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1"><option value="random">random</option><option value="sequential">sequential</option></select>
+    </div>
+    <div className="space-y-2 border-t border-white/10 pt-4">
+      <label>Transition</label><select value={appearance.backgroundTransition?.type || 'fade'} onChange={e=>updateAppearance({backgroundTransition:{...(appearance.backgroundTransition||{}),type:e.target.value}})} className="w-full bg-black/40 border border-white/10 rounded px-2 py-1"><option>none</option><option>fade</option><option>zoom-fade</option><option>blur-fade</option><option>slide-left</option><option>slide-right</option></select>
+      <input type="range" min={200} max={3000} value={appearance.backgroundTransition?.durationMs || 900} onChange={e=>updateAppearance({backgroundTransition:{...(appearance.backgroundTransition||{}),durationMs:parseInt(e.target.value)}})} className="w-full" />
+    </div>
+    <ColorPickerField label="Background Color (Fallback)" value={appearance.backgroundColor || '#050505'} onChange={val => updateAppearance({ backgroundColor: val })} />
+    <ColorPickerField label="Overlay Color" value={appearance.overlayColor || '#000000'} onChange={val => updateAppearance({ overlayColor: val })} />
+    <div className="pt-4 border-t border-white/10"><button onClick={resetConfig} className="text-rose-300">Reset to Factory Defaults</button></div>
+  </div>;
 }
 
 function ShortcutsTab({ config, updateConfig }: any) {

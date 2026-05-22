@@ -15,7 +15,20 @@
       "blur": 0,
       "vignette": 80,
       "accentColor": "#ffffff",
-      "density": "comfortable"
+      "density": "comfortable",
+      "activeWallpaperId": "",
+      "backgroundTransition": {
+        "type": "fade",
+        "durationMs": 900,
+        "easing": "ease-out"
+      },
+      "slideshow": {
+        "enabled": false,
+        "intervalMs": 60000,
+        "mode": "random",
+        "includeUploaded": true,
+        "includeRemoteUrls": true
+      }
     }
   },
   "availableBackgrounds": [],
@@ -308,5 +321,6 @@
       "config": {},
       "sortOrder": 3
     }
-  ]
+  ],
+  "wallpapers": []
 }

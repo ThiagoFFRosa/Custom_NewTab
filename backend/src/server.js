@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import configRoutes from './routes/config.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
+import wallpaperRoutes from './routes/wallpapers.routes.js';
 import { UPLOADS_DIR } from './paths.js';
 
 const app = express();
@@ -12,6 +13,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use('/api/config', configRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/wallpapers', wallpaperRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'custom-newtab-api' });
