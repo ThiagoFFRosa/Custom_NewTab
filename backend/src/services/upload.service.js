@@ -2,7 +2,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getConfig, saveConfig } from './config.service.js';
 
-const uploadRoot = path.resolve('backend/uploads');
+import { UPLOADS_DIR } from '../paths.js';
+
+const uploadRoot = UPLOADS_DIR;
 
 export function toUploadMeta(type, file) {
   const folder = type === 'background' ? 'backgrounds' : 'icons';

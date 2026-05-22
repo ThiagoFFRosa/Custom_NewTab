@@ -13,8 +13,14 @@ export default defineConfig(() => ({
     hmr: process.env.DISABLE_HMR !== 'true',
     watch: process.env.DISABLE_HMR === 'true' ? null : {},
     proxy: {
-      '/api': 'http://localhost:4178',
-      '/uploads': 'http://localhost:4178'
+      '/api': {
+        target: 'http://localhost:4178',
+        changeOrigin: true
+      },
+      '/uploads': {
+        target: 'http://localhost:4178',
+        changeOrigin: true
+      }
     }
   },
   preview: {

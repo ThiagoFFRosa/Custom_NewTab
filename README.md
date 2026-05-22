@@ -1,29 +1,29 @@
 # Custom New Tab Dashboard
 
-## Rodando o projeto
+## Desenvolvimento
 
-### Frontend + Backend juntos
+### Subir frontend + backend juntos
 ```bash
 npm install
 npm run dev
 ```
 
-### Separado
+### Rodar separado
 ```bash
 npm run dev:frontend
 npm run dev:backend
 ```
 
-### Backend isolado
+### Iniciar modo start (preview + API)
 ```bash
-cd backend
-npm install
-npm run dev
+npm run start:frontend
+npm run start:backend
 ```
 
 ## URLs
 - Frontend: http://localhost:4177
 - Backend: http://localhost:4178
+- Healthcheck: http://localhost:4178/api/health
 - Config API: http://localhost:4178/api/config
 
 ## Persistência (sem banco de dados)

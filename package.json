@@ -4,13 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev:frontend",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "dev:frontend": "vite",
-    "dev:backend": "npm --prefix backend run dev"
+    "dev:frontend": "vite --host 0.0.0.0 --port 4177 --strictPort",
+    "dev:backend": "node backend/src/server.js",
+    "start:frontend": "vite preview --host 0.0.0.0 --port 4177 --strictPort",
+    "start:backend": "node backend/src/server.js"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -33,6 +35,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "concurrently": "^9.2.1"
   }
 }

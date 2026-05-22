@@ -2,7 +2,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { safeJsonWrite } from '../utils/safeJsonWrite.js';
 
-const dataDir = path.resolve('backend/data');
+import { DATA_DIR } from '../paths.js';
+
+const dataDir = DATA_DIR;
 const configPath = path.join(dataDir, 'config.json');
 const defaultPath = path.join(dataDir, 'default-config.json');
 const backupPath = path.join(dataDir, 'config.backup.json');
