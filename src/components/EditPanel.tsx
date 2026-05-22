@@ -123,6 +123,25 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
     updateConfig(nextConfig);
   };
 
+  const handleAddUrls = async () => {
+    const urls = urlText
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+    if (!urls.length) return;
+
+    try {
+      const res = await addWallpaperUrls(urls);
+      setMsg(res.invalid?.length ? `Algumas URLs inválidas: ${res.invalid.length}` : 'URLs adicionadas.');
+      setUrlText('');
+      await refresh();
+    } catch (error) {
+      console.error('Failed to add wallpaper URLs:', error);
+      setMsg('Falha ao adicionar URLs.');
+    }
+  };
+
   const activeWallpaperId = appearance.activeWallpaperId;
 
   return <div className="space-y-6 text-white text-sm">
@@ -134,8 +153,7 @@ function AppearanceTab({ config, updateConfig, resetConfig }: any) {
     <div className="space-y-2">
       <label className="block text-white/70 font-medium">Add wallpapers by URL</label>
       <textarea value={urlText} onChange={(e)=>setUrlText(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2" rows={4} placeholder="https://... (uma por linha)" />
-      <button onClick={async ()=>{ const urls=urlText.split('
-').map((v)=>v.trim()).filter(Boolean); if(!urls.length) return; try{const res=await addWallpaperUrls(urls); setMsg(res.invalid.length?`Algumas URLs inválidas: ${res.invalid.length}`:'URLs adicionadas.'); setUrlText(''); await refresh();}catch{setMsg('Falha ao adicionar URLs.');} }} className="px-3 py-2 rounded bg-white/10 hover:bg-white/20">Add URLs</button>
+      <button onClick={handleAddUrls} className="px-3 py-2 rounded bg-white/10 hover:bg-white/20">Add URLs</button>
       {msg && <p className="text-xs text-white/60">{msg}</p>}
     </div>
     <div className="flex gap-2">
