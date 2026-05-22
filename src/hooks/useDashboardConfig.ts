@@ -10,8 +10,16 @@ function normalizeConfig(config: DashboardConfig): DashboardConfig {
     ? config.wallpapers.map((w) => ({ ...w, enabledForSlideshow: w.enabledForSlideshow !== false }))
     : [];
   const appearance = config.settings?.appearance || ({} as DashboardConfig['settings']['appearance']);
+  const normalizedCategories = Array.isArray(config.categories)
+    ? config.categories
+        .map((category, index) => ({ ...category, sortOrder: category.sortOrder ?? index + 1 }))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((category, index) => ({ ...category, sortOrder: index + 1 }))
+    : [];
+
   return {
     ...config,
+    categories: normalizedCategories,
     wallpapers,
     settings: {
       ...config.settings,
