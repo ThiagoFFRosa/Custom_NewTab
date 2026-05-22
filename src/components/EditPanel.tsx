@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, X, Trash2, Plus, RotateCcw, Save } from 'lucide-react';
+import { Settings as SettingsIcon, X, Trash2, Plus, GripVertical } from 'lucide-react';
 import { DashboardConfig, Shortcut, Category, Widget } from '../types';
 import { GlassCard } from './GlassCard';
 import { IconPicker } from './IconPicker';
 import { ColorPickerField } from './ColorPickerField';
 import { addWallpaperUrls, deleteIcon, deleteWallpaper, deleteWallpapers, getWallpapers, listIcons, updateWallpaper, uploadIcon, uploadWallpapers } from '../services/api';
+import { reorderById, sortByOrder } from '../utils/sort';
 
 interface EditPanelProps {
   config: DashboardConfig;
@@ -378,6 +379,9 @@ function ShortcutsTab({ config, updateConfig }: any) {
 }
 
 function CategoriesTab({ config, updateConfig }: any) {
+  const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
+  const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
+
   const toggleCategory = (id: string) => {
     updateConfig((prev: DashboardConfig) => ({
       ...prev,
@@ -391,29 +395,91 @@ function CategoriesTab({ config, updateConfig }: any) {
     }));
   };
   const deleteCategory = (id: string) => {
-    updateConfig((prev: DashboardConfig) => ({
-      ...prev,
-      categories: prev.categories.filter(c => c.id !== id)
-    }));
+    updateConfig((prev: DashboardConfig) => {
+      const remaining = prev.categories.filter(c => c.id !== id).sort(sortByOrder);
+      return {
+        ...prev,
+        categories: remaining.map((category, index) => ({ ...category, sortOrder: index + 1 }))
+      };
+    });
   };
   const addCategory = () => {
     const newId = 'cat_' + Math.random().toString(36).substr(2, 9);
-    updateConfig((prev: DashboardConfig) => ({
-      ...prev,
-      categories: [
-        ...prev.categories,
-        { id: newId, name: 'New Category', slug: 'new-category', enabled: true, sortOrder: prev.categories.length + 1 }
-      ]
-    }));
+    updateConfig((prev: DashboardConfig) => {
+      const orderedCategories = [...prev.categories].sort(sortByOrder);
+      return {
+        ...prev,
+        categories: [
+          ...orderedCategories,
+          { id: newId, name: 'New Category', slug: 'new-category', enabled: true, sortOrder: orderedCategories.length + 1 }
+        ]
+      };
+    });
   };
+
+  const moveCategoryByOffset = (categoryId: string, direction: -1 | 1) => {
+    updateConfig((prev: DashboardConfig) => {
+      const sorted = [...prev.categories].sort(sortByOrder);
+      const fromIndex = sorted.findIndex((category) => category.id === categoryId);
+      const toIndex = fromIndex + direction;
+      if (fromIndex < 0 || toIndex < 0 || toIndex >= sorted.length) return prev;
+      const targetId = sorted[toIndex].id;
+      return { ...prev, categories: reorderById(sorted, categoryId, targetId) };
+    });
+  };
+
+  const orderedCategories = [...config.categories].sort(sortByOrder);
 
   return (
     <div className="space-y-4">
-      {config.categories.map((c: Category) => (
-        <div key={c.id} className="p-4 bg-white/5 rounded-lg border border-white/5 space-y-3 relative group">
+      {orderedCategories.map((c: Category, index: number) => (
+        <div
+          key={c.id}
+          className={`p-4 bg-white/5 rounded-lg border space-y-3 relative group transition-all select-none ${draggedCategoryId === c.id ? 'border-white/40 opacity-60 scale-[0.99]' : dragOverCategoryId === c.id ? 'border-white/30 bg-white/10' : 'border-white/5'}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (draggedCategoryId && draggedCategoryId !== c.id) {
+              setDragOverCategoryId(c.id);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const sourceId = e.dataTransfer.getData('text/plain') || draggedCategoryId;
+            if (!sourceId || sourceId === c.id) return;
+            updateConfig((prev: DashboardConfig) => ({
+              ...prev,
+              categories: reorderById(prev.categories, sourceId, c.id)
+            }));
+            setDraggedCategoryId(null);
+            setDragOverCategoryId(null);
+          }}
+          onDragLeave={() => {
+            if (dragOverCategoryId === c.id) setDragOverCategoryId(null);
+          }}
+        >
           <div className="flex items-start justify-between gap-4">
            <div className="flex-1 space-y-2">
              <div className="flex items-center gap-2">
+               <button
+                 draggable
+                 onDragStart={(e) => {
+                   setDraggedCategoryId(c.id);
+                   e.dataTransfer.setData('text/plain', c.id);
+                   e.dataTransfer.effectAllowed = 'move';
+                 }}
+                 onDragEnd={() => {
+                   setDraggedCategoryId(null);
+                   setDragOverCategoryId(null);
+                 }}
+                 className="text-white/40 hover:text-white/80 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-white/10"
+                 title="Drag category"
+                 aria-label={`Drag category ${c.name}`}
+                 type="button"
+               >
+                 <GripVertical size={16} />
+               </button>
                {c.color && <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />}
                <input
                  type="text"
@@ -429,7 +495,21 @@ function CategoriesTab({ config, updateConfig }: any) {
                <input type="checkbox" className="sr-only peer" checked={c.enabled} onChange={() => toggleCategory(c.id)} />
                <div className="w-9 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white/80"></div>
              </label>
-             <button 
+             <button
+               onClick={() => moveCategoryByOffset(c.id, -1)}
+               disabled={index === 0}
+               className="text-white/40 disabled:text-white/15 hover:text-white transition-colors p-1"
+               title="Move up"
+               type="button"
+             >↑</button>
+             <button
+               onClick={() => moveCategoryByOffset(c.id, 1)}
+               disabled={index === orderedCategories.length - 1}
+               className="text-white/40 disabled:text-white/15 hover:text-white transition-colors p-1"
+               title="Move down"
+               type="button"
+             >↓</button>
+             <button
                onClick={() => deleteCategory(c.id)}
                className="text-white/30 hover:text-red-400 transition-colors p-1"
                title="Delete Category"
@@ -440,8 +520,8 @@ function CategoriesTab({ config, updateConfig }: any) {
           </div>
           {c.enabled && (
              <div className="pt-2 border-t border-white/10">
-                <ColorPickerField 
-                  label="Category Color" 
+                <ColorPickerField
+                  label="Category Color"
                   value={c.color || '#ffffff'}
                   onChange={val => updateCategory(c.id, { color: val })}
                 />
@@ -449,9 +529,9 @@ function CategoriesTab({ config, updateConfig }: any) {
           )}
         </div>
       ))}
-      
-      <button 
-        onClick={addCategory} 
+
+      <button
+        onClick={addCategory}
         className="w-full py-4 border border-dashed border-white/20 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
       >
         <Plus size={16} />
