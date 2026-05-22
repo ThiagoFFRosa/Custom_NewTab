@@ -6,24 +6,30 @@ interface Props {
   wallpapers?: WallpaperItem[];
 }
 
-const transitionStyle = (type: string, visible: boolean) => {
-  const base = { opacity: visible ? 1 : 0, transform: 'translateX(0) scale(1)', filter: 'blur(0px)' } as any;
+const transitionStyle = (type: string, visible: boolean): React.CSSProperties => {
+  const base: React.CSSProperties = { opacity: visible ? 1 : 0, transform: 'translateX(0) scale(1)', filter: 'blur(0px)' };
   if (type === 'zoom-fade' && !visible) base.transform = 'scale(1.04)';
   if (type === 'blur-fade' && !visible) base.filter = 'blur(12px)';
-  if (type === 'slide-left' && !visible) base.transform = 'translateX(3%)';
-  if (type === 'slide-right' && !visible) base.transform = 'translateX(-3%)';
+  if (type === 'slide-left' && !visible) base.transform = 'translateX(24px)';
+  if (type === 'slide-right' && !visible) base.transform = 'translateX(-24px)';
   return base;
 };
 
 export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
-  const [current, setCurrent] = useState<string | null>(null);
-  const [next, setNext] = useState<string | null>(null);
-  const [showNext, setShowNext] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState<string | null>(null);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
+  const [isNextVisible, setIsNextVisible] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [slideshowIndex, setSlideshowIndex] = useState(0);
-  const lastUrlRef = useRef<string | null>(null);
+
+  const transitionTimeoutRef = useRef<number | null>(null);
+  const preloadIdRef = useRef(0);
+  const pendingUrlRef = useRef<string | null>(null);
+  const isTransitioningRef = useRef(false);
 
   const transition = appearance.backgroundTransition || { type: 'fade', durationMs: 900, easing: 'ease-out' as const };
   const slideshow = appearance.slideshow || { enabled: false, intervalMs: 60000, mode: 'random' as const, includeUploaded: true, includeRemoteUrls: true };
+
   const slideshowWallpapers = useMemo(
     () => wallpapers.filter((w) => w.enabledForSlideshow !== false)
       .filter((w) => ((w.type === 'upload' || w.source === 'local') ? slideshow.includeUploaded : slideshow.includeRemoteUrls)),
@@ -40,8 +46,13 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
     : activeWallpaperUrl || appearance.backgroundUrl || null;
 
   useEffect(() => {
+    isTransitioningRef.current = isTransitioning;
+  }, [isTransitioning]);
+
+  useEffect(() => {
     if (!slideshow.enabled || slideshowWallpapers.length < 2) return;
     const timer = window.setInterval(() => {
+      if (isTransitioningRef.current) return;
       setSlideshowIndex((prev) => {
         if (slideshow.mode === 'sequential') return (prev + 1) % slideshowWallpapers.length;
         let nextIdx = prev;
@@ -53,38 +64,121 @@ export function BackgroundLayer({ appearance, wallpapers = [] }: Props) {
   }, [slideshow.enabled, slideshow.intervalMs, slideshow.mode, slideshowWallpapers.length]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!desiredUrl || desiredUrl === lastUrlRef.current) return;
+    return () => {
+      preloadIdRef.current += 1;
+      if (transitionTimeoutRef.current !== null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const finalizeTransition = (url: string, preloadId: number) => {
+    if (preloadId !== preloadIdRef.current) return;
+    setCurrentUrl(url);
+    pendingUrlRef.current = null;
+    setNextUrl(null);
+    setIsNextVisible(false);
+    setIsTransitioning(false);
+    if (transitionTimeoutRef.current !== null) {
+      window.clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!desiredUrl) {
+      preloadIdRef.current += 1;
+      pendingUrlRef.current = null;
+      if (transitionTimeoutRef.current !== null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
+      setCurrentUrl(null);
+      setNextUrl(null);
+      setIsNextVisible(false);
+      setIsTransitioning(false);
+      return;
+    }
+
+    if (desiredUrl === currentUrl || desiredUrl === pendingUrlRef.current) return;
+
+    const preloadId = ++preloadIdRef.current;
     const img = new Image();
+
     img.onload = () => {
-      if (cancelled) return;
-      setNext(desiredUrl);
-      setShowNext(true);
-      window.setTimeout(() => {
-        if (cancelled) return;
-        setCurrent(desiredUrl);
-        lastUrlRef.current = desiredUrl;
-        setNext(null);
-        setShowNext(false);
-      }, transition.type === 'none' ? 0 : transition.durationMs);
+      if (preloadId !== preloadIdRef.current) return;
+
+      if (transition.type === 'none') {
+        setCurrentUrl(desiredUrl);
+        setNextUrl(null);
+        setIsNextVisible(false);
+        setIsTransitioning(false);
+        pendingUrlRef.current = null;
+        return;
+      }
+
+      pendingUrlRef.current = desiredUrl;
+      setNextUrl(desiredUrl);
+      setIsNextVisible(false);
+      setIsTransitioning(true);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (preloadId !== preloadIdRef.current) return;
+          setIsNextVisible(true);
+        });
+      });
+
+      if (transitionTimeoutRef.current !== null) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+
+      transitionTimeoutRef.current = window.setTimeout(() => {
+        finalizeTransition(desiredUrl, preloadId);
+      }, transition.durationMs + 100);
     };
+
     img.onerror = () => {
-      if (cancelled) return;
+      if (preloadId !== preloadIdRef.current) return;
       if (slideshow.enabled && slideshowWallpapers.length > 1) setSlideshowIndex((v) => (v + 1) % slideshowWallpapers.length);
-      setCurrent(null);
-      lastUrlRef.current = null;
     };
+
     img.src = desiredUrl;
-    return () => { cancelled = true; };
-  }, [desiredUrl, transition.durationMs, transition.type, slideshow.enabled, slideshowWallpapers.length]);
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [desiredUrl, currentUrl, transition.type, transition.durationMs, slideshow.enabled, slideshowWallpapers.length]);
 
   const duration = transition.type === 'none' ? 0 : transition.durationMs;
-  const common = { transition: `all ${duration}ms ${transition.easing}`, filter: `blur(${appearance.blur}px)`, transform: appearance.blur > 0 ? 'scale(1.05)' : 'scale(1)' } as React.CSSProperties;
+  const transitionCss = `opacity ${duration}ms ${transition.easing}, transform ${duration}ms ${transition.easing}, filter ${duration}ms ${transition.easing}`;
+  const baseLayerStyle = {
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    filter: `blur(${appearance.blur}px)`,
+    willChange: 'opacity, transform, filter',
+    pointerEvents: 'none' as const,
+    transition: transitionCss
+  };
 
-  return <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor: appearance.backgroundColor }}>
-    <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ ...common, backgroundImage: current ? `url('${current}')` : undefined, ...transitionStyle(transition.type, true) }} />
-    {next && <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ ...common, backgroundImage: `url('${next}')`, ...transitionStyle(transition.type, showNext) }} />}
-    <div className="absolute inset-0" style={{ backgroundColor: appearance.overlayColor, opacity: appearance.overlayOpacity }} />
-    <div className="absolute inset-0" style={{ boxShadow: `inset 0 0 ${appearance.vignette}vmin rgba(0,0,0,0.8)` }} />
+  return <div className="fixed inset-0 pointer-events-none" style={{ backgroundColor: appearance.backgroundColor, zIndex: 0 }}>
+    <div
+      className="absolute inset-0"
+      style={{ ...baseLayerStyle, zIndex: 1, backgroundImage: currentUrl ? `url('${currentUrl}')` : undefined, ...transitionStyle(transition.type, true) }}
+    />
+    {nextUrl && (
+      <div
+        className="absolute inset-0"
+        style={{ ...baseLayerStyle, zIndex: 2, backgroundImage: `url('${nextUrl}')`, ...transitionStyle(transition.type, isNextVisible) }}
+        onTransitionEnd={(event) => {
+          if (event.propertyName !== 'opacity' || !nextUrl) return;
+          finalizeTransition(nextUrl, preloadIdRef.current);
+        }}
+      />
+    )}
+    <div className="absolute inset-0" style={{ zIndex: 3, backgroundColor: appearance.overlayColor, opacity: appearance.overlayOpacity }} />
+    <div className="absolute inset-0" style={{ zIndex: 3, boxShadow: `inset 0 0 ${appearance.vignette}vmin rgba(0,0,0,0.8)` }} />
   </div>;
 }
